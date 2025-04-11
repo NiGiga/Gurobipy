@@ -1,101 +1,122 @@
-#%% md
-# Problema di Ottimizzazione della Produzione di Cucine
+# Kitchen Production Optimization Problem
+#
+# A company manufactures three different models of kitchens: A, B, and C.
+#
+# Problem Data:
+# - Daily unit production costs:
+#   - Model A: €1,500
+#   - Model B: €2,500
+#   - Model C: €2,000
+#
+# - Unit selling prices:
+#   - Model A: €4,000
+#   - Model B: €7,500
+#   - Model C: €5,000
+#
+# - Fixed daily costs:
+#   - Telephone: €150
+#   - Electricity: €125
+#
+# Resource Constraints:
+# - Available wood: 800 m²/day
+# - Wood consumption per kitchen:
+#   - Model A: 24 m²
+#   - Model B: 27 m²
+#   - Model C: 23 m²
+#
+# - Minimum production requirements:
+#   - At least 4 units of model A
+#   - At least 5 units of model B
+#   - At least 6 units of model C
+#
+# Processing times per department (in minutes):
+#            | Model A | Model B | Model C
+# -----------|---------|---------|---------
+# Cutting    |   10    |   30    |   25
+# Painting   |   10    |   15    |   10
+# Assembly   |    8    |   12    |   15
+#
+# Maximum daily availability per department:
+# - Cutting: 20 hours (1,200 minutes)
+# - Painting: 18 hours (1,080 minutes)
+# - Assembly: 22 hours (1,320 minutes)
+#
+# Objective:
+# Formulate the problem as a mathematical optimization model
+# with the goal of maximizing the total daily profit.
 
-Un’azienda produce tre modelli differenti di cucine: **A**, **B** e **C**.
 
-## **Dati del problema**
-
-- **Costi unitari giornalieri di produzione**
-  - Modello A: **1.500 €**
-  - Modello B: **2.500 €**
-  - Modello C: **2.000 €**
-
-- **Prezzi unitari di vendita**
-  - Modello A: **4.000 €**
-  - Modello B: **7.500 €**
-  - Modello C: **5.000 €**
-
-- **Costi fissi giornalieri**
-  - Spese telefoniche: **150 €**
-  - Consumo di energia elettrica: **125 €**
-
-## **Vincoli sulle risorse**
-
-- **Disponibilità del legno**: **800 m²/giorno**
-- **Consumo di legno per cucina**
-  - Modello A: **24 m²**
-  - Modello B: **27 m²**
-  - Modello C: **23 m²**
-
-- **Produzione minima richiesta**
-  - Almeno **4** cucine di tipo A
-  - Almeno **5** cucine di tipo B
-  - Almeno **6** cucine di tipo C
-
-## **Tempi di lavorazione nei reparti**
-
-| Reparto       | Modello A | Modello B | Modello C |
-|--------------|----------|----------|----------|
-| **Taglio**       | 10 min    | 30 min    | 25 min    |
-| **Verniciatura** | 10 min    | 15 min    | 10 min    |
-| **Montaggio**    | 8 min     | 12 min    | 15 min    |
-
-- **Disponibilità massima giornaliera per reparto**
-  - Taglio: **20 ore** (**1.200 min**)
-  - Verniciatura: **18 ore** (**1.080 min**)
-  - Montaggio: **22 ore** (**1.320 min**)
-
-## **Obiettivo del problema**
-
-Formulare il problema come un **modello di ottimizzazione matematica** con l'obiettivo di **massimizzare il profitto giornaliero complessivo**.
-
-#%%
 import gurobipy as gp
 from gurobipy import GRB
 
+# Create the optimization model
 m = gp.Model("KitchenFactory")
 
+# Kitchen models
 kitchen = ['A', 'B', 'C']
-departments = ['taglio', 'verniciatura', 'montaggio']
 
+# Departments
+departments = ['cutting', 'painting', 'assembly']
+
+# Daily production cost per unit for each model
 daily_prod_costs = {'A': 1500, 'B': 2500, 'C': 2000}
 
+# Selling price per unit for each model
 selling_prices = {'A': 4000, 'B': 7500, 'C': 5000}
 
-
+# Fixed daily costs (phone + electricity)
 phone_costs = 150
 electricity_costs = 125
-daily_costs = phone_costs+electricity_costs
+daily_costs = phone_costs + electricity_costs
 
+# Maximum available wood per day (in square meters)
 max_wood = 800
 
+# Wood usage per unit of kitchen
 wood_usage = {'A': 24, 'B': 27, 'C': 23}
 
+# Processing time (in minutes) per model and department
+times = {
+    ('A', 'cutting'): 10, ('B', 'cutting'): 30, ('C', 'cutting'): 25,
+    ('A', 'painting'): 10, ('B', 'painting'): 15, ('C', 'painting'): 10,
+    ('A', 'assembly'): 8,  ('B', 'assembly'): 12,  ('C', 'assembly'): 15
+}
 
+# Maximum available time per department (in minutes)
+max_time = {'cutting': 20 * 60, 'painting': 18 * 60, 'assembly': 22 * 60}
 
-times = {('A', 'taglio'): 10, ('B', 'taglio'): 30, ('C', 'taglio'): 25,
-         ('A', 'verniciatura'): 10, ('B', 'verniciatura'): 15, ('C', 'verniciatura'): 10,
-         ('A', 'montaggio'): 8, ('B', 'montaggio'): 12, ('C', 'montaggio'): 15}
-
-max_tme = {'taglio': 20 * 60, 'verniciatura': 18 * 60, 'montaggio': 22 * 60}
-
+# Decision variables: number of kitchens to produce of each model
 x = m.addVars(kitchen, name='x', vtype=GRB.INTEGER)
 
+# Objective function: maximize total profit (revenues - production costs - fixed costs)
+m.setObjective(
+    sum(x[j] * (selling_prices[j] - daily_prod_costs[j]) for j in kitchen) - daily_costs,
+    GRB.MAXIMIZE
+)
 
-m.setObjective((sum(x[j] * (selling_prices[j] - daily_prod_costs[j]) for j in kitchen) - daily_costs), GRB.MAXIMIZE)
+# Minimum production constraints
+m.addConstr(x['A'] >= 4, name='minA')
+m.addConstr(x['B'] >= 5, name='minB')
+m.addConstr(x['C'] >= 6, name='minC')
 
-m.addConstr(x['A'] >= 4)
-m.addConstr(x['B'] >= 5)
-m.addConstr(x['C'] >= 6)
+# Department time availability constraints
+m.addConstrs(
+    (gp.quicksum(x[r] * times[r, d] for r in kitchen) <= max_time[d] for d in departments),
+    name='departmentTime'
+)
 
-m.addConstrs((gp.quicksum(x[r] * times[r, m] for r in kitchen) <= max_tme[m] for m in departments), name='workTime')
+# Wood usage constraint
+m.addConstr(
+    gp.quicksum(x[j] * wood_usage[j] for j in kitchen) <= max_wood,
+    name='woodUsage'
+)
 
-m.addConstr(gp.quicksum(x[j] * wood_usage[j] for j in kitchen ) <= max_wood, name='woodUsage')
-
+# Solve the model
 m.optimize()
 
+# Output the optimal solution
 if m.status == GRB.Status.OPTIMAL:
-    print('Optimal solution:')
+    print('Optimal production plan:')
     for r in kitchen:
-        print(f"{r}: {x[r].X:.0f}")
-    print(f"Profit: {m.ObjVal:.2f}")
+        print(f"  Model {r}: {x[r].X:.0f} units")
+    print(f"Maximum profit: €{m.ObjVal:.2f}")
