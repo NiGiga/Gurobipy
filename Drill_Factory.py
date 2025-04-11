@@ -113,7 +113,13 @@ m.optimize()
 # Output solution if optimal
 if m.status == GRB.Status.OPTIMAL:
     for mth in months:
+        print(f'\n--- Month {mth} ---')
         for f in factories:
+            total_from_f = sum(x[mth, f, s].X for s in stores)
+            print(f'  Total drills produced by factory {f}: {total_from_f:.0f}')
             for s in stores:
-                print(f'x[{mth},{f},{s}] = {x[mth, f, s].X:.0f}')
-    print(f'Max value: {m.objVal:.2f} €')
+                quantity = x[mth, f, s].X
+                if quantity > 0:
+                    print(f'    → Send {quantity:.0f} drills from {f} to store {s}')
+    print(f'\nMaximum profit: {m.objVal:.2f} €')
+
